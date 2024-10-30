@@ -447,10 +447,10 @@ message(STATUS "")
 # -----------------------------------------------------------------------------
 # Main targets
 # -----------------------------------------------------------------------------
-
+set(mi_install_targets)
 # shared library
 if(MI_BUILD_SHARED)
-  add_library(mimalloc SHARED ${mi_sources})
+  add_library(mimalloc SHARED ${mi_sources} cmake/mimalloc-config.cmake.in)
   set_target_properties(mimalloc PROPERTIES VERSION ${mi_version} SOVERSION ${mi_version_major} OUTPUT_NAME ${mi_basename} )
   target_compile_definitions(mimalloc PRIVATE ${mi_defines} MI_SHARED_LIB MI_SHARED_LIB_EXPORT)
   target_compile_options(mimalloc PRIVATE ${mi_cflags} ${mi_cflags_dynamic})
@@ -474,8 +474,9 @@ if(MI_BUILD_SHARED)
     install(FILES "$<TARGET_FILE_DIR:mimalloc>/mimalloc-redirect${MIMALLOC_REDIRECT_SUFFIX}.dll" DESTINATION ${mi_install_bindir})
   endif()
 
-  install(TARGETS mimalloc EXPORT mimalloc ARCHIVE DESTINATION ${mi_install_libdir} RUNTIME DESTINATION ${mi_install_bindir} LIBRARY DESTINATION ${mi_install_libdir})
-  install(EXPORT mimalloc DESTINATION ${mi_install_cmakedir})
+  list(APPEND mi_install_targets mimalloc)
+  #install(TARGETS mimalloc EXPORT mimalloc ARCHIVE DESTINATION ${mi_install_libdir} RUNTIME DESTINATION ${mi_install_bindir} LIBRARY DESTINATION ${mi_install_libdir})
+  #install(EXPORT mimalloc DESTINATION ${mi_install_cmakedir})
 endif()
 
 # static library
@@ -498,17 +499,39 @@ if (MI_BUILD_STATIC)
     set_target_properties(mimalloc-static PROPERTIES OUTPUT_NAME ${mi_basename})
   endif()
 
-  install(TARGETS mimalloc-static EXPORT mimalloc DESTINATION ${mi_install_objdir} LIBRARY)
-  install(EXPORT mimalloc DESTINATION ${mi_install_cmakedir})
+  list(APPEND mi_install_targets mimalloc-static)
+  #install(TARGETS mimalloc-static EXPORT mimalloc_targets DESTINATION ${mi_install_objdir} LIBRARY)
+  #install(EXPORT mimalloc DESTINATION ${mi_install_cmakedir})
 endif()
 
 # install include files
 install(FILES include/mimalloc.h DESTINATION ${mi_install_incdir})
 install(FILES include/mimalloc-override.h DESTINATION ${mi_install_incdir})
 install(FILES include/mimalloc-new-delete.h DESTINATION ${mi_install_incdir})
-install(FILES cmake/mimalloc-config.cmake DESTINATION ${mi_install_cmakedir})
-install(FILES cmake/mimalloc-config-version.cmake DESTINATION ${mi_install_cmakedir})
 
+install(TARGETS ${mi_install_targets} EXPORT mimalloc_targets DESTINATION ${mi_install_objdir} LIBRARY)
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file("mimalloc-config-version.cmake"
+                                 VERSION ${mi_version}
+                                 COMPATIBILITY SameMajorVersion)
+
+ configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/mimalloc-config.cmake.in"
+                               "${PROJECT_BINARY_DIR}/mimalloc-config.cmake"
+                               INSTALL_DESTINATION cmake)
+
+install(EXPORT mimalloc_targets
+    FILE "mimalloc-targets.cmake"
+    NAMESPACE mimalloc::
+    DESTINATION cmake)
+
+install(FILES
+  "${PROJECT_BINARY_DIR}/mimalloc-config.cmake"
+  "${PROJECT_BINARY_DIR}/mimalloc-config-version.cmake"
+  DESTINATION cmake)
+
+#install(FILES cmake/mimalloc-config.cmake DESTINATION ${mi_install_cmakedir})
+#install(FILES cmake/mimalloc-config-version.cmake DESTINATION ${mi_install_cmakedir})
 
 # single object file for more predictable static overriding
 if (MI_BUILD_OBJECT)
